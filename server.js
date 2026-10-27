@@ -1,6 +1,6 @@
 /**
  * Orta Widget Hub (Mock & Ingestion Service)
- * 
+ *
  * Легковесный сервис виджетов для платформы Orta Mobile:
  * - GET  /api/v1/widgets               — список виджетов для главного экрана
  * - POST /api/v1/widgets/publish       — публикация/обновление виджета сторонним сервисом
@@ -13,7 +13,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {fileURLToPath} from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,7 +27,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-sed-docs',
     externalId: 'sed-pending-counter',
-    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
+    appId: '056f66ad-50c2-46a0-95bd-6a8a8a111226',
     appName: 'СЭД: Документы',
     template: 'metric',
     title: 'Документы на подпись',
@@ -42,7 +42,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-calendar-sync',
     externalId: 'meeting-sync-orta',
-    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
+    appId: '056f66ad-50c2-46a0-95bd-6a8a8a111226',
     appName: 'Календарь',
     template: 'event',
     title: 'Синхрон команды Orta',
@@ -56,7 +56,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-approval-vacation',
     externalId: 'vacation-req-102',
-    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
+    appId: '056f66ad-50c2-46a0-95bd-6a8a8a111226',
     appName: 'HR Портал',
     template: 'approval',
     title: 'Заявление на отпуск',
@@ -70,7 +70,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-poll-q4',
     externalId: 'poll-education-q4',
-    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
+    appId: '056f66ad-50c2-46a0-95bd-6a8a8a111226',
     appName: 'Опросы компании',
     template: 'poll',
     title: 'Корпоративное обучение Q4',
@@ -79,15 +79,25 @@ const INITIAL_WIDGETS = [
     actionText: 'Принять участие →',
     actionUrl: '/test',
     options: [
-      { id: 'opt_1', text: 'AI и автоматизация', percentage: 68, isLeading: true },
-      { id: 'opt_2', text: 'Управление проектами', percentage: 32, isLeading: false },
+      {
+        id: 'opt_1',
+        text: 'AI и автоматизация',
+        percentage: 68,
+        isLeading: true,
+      },
+      {
+        id: 'opt_2',
+        text: 'Управление проектами',
+        percentage: 32,
+        isLeading: false,
+      },
     ],
     priority: 60,
   },
   {
     id: 'widget-pass-guest',
     externalId: 'pass-guest-994',
-    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
+    appId: '056f66ad-50c2-46a0-95bd-6a8a8a111226',
     appName: 'Бюро пропусков',
     template: 'progress',
     title: 'Гостевой пропуск',
@@ -106,10 +116,14 @@ const INITIAL_WIDGETS = [
  */
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.mkdirSync(DATA_DIR, {recursive: true});
   }
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_WIDGETS, null, 2), 'utf-8');
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(INITIAL_WIDGETS, null, 2),
+      'utf-8',
+    );
   }
 }
 
@@ -123,7 +137,10 @@ function loadWidgets() {
     }
     return [...INITIAL_WIDGETS];
   } catch (err) {
-    console.error('[Storage] Error loading widgets from file, using initial:', err.message);
+    console.error(
+      '[Storage] Error loading widgets from file, using initial:',
+      err.message,
+    );
     return [...INITIAL_WIDGETS];
   }
 }
@@ -150,7 +167,8 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Headers':
+      'Content-Type, Authorization, X-Requested-With',
   });
   res.end(payload);
 }
@@ -181,7 +199,10 @@ function parseJsonBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const parsedUrl = new URL(
+    req.url,
+    `http://${req.headers.host || 'localhost'}`,
+  );
   const pathname = parsedUrl.pathname;
   const method = req.method;
 
@@ -190,7 +211,8 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, X-Requested-With',
     });
     return res.end();
   }
@@ -210,7 +232,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/v1/widgets' && method === 'GET') {
     const userId = parsedUrl.searchParams.get('userId');
     // Сортировка по приоритету (высший приоритет первым)
-    const sorted = [...widgetsStore].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    const sorted = [...widgetsStore].sort(
+      (a, b) => (b.priority || 0) - (a.priority || 0),
+    );
 
     return sendJson(res, 200, {
       success: true,
@@ -223,16 +247,21 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/v1/widgets/publish' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
-      const { targetUser, externalId, widget } = body;
+      const {targetUser, externalId, widget} = body;
 
       if (!widget || !widget.appId || !widget.template || !widget.title) {
         return sendJson(res, 400, {
           success: false,
-          error: 'Missing required fields: widget.appId, widget.template, widget.title',
+          error:
+            'Missing required fields: widget.appId, widget.template, widget.title',
         });
       }
 
-      const widgetId = widget.id || (externalId ? `widget-${widget.appId}-${externalId}` : `widget-${crypto.randomUUID()}`);
+      const widgetId =
+        widget.id ||
+        (externalId
+          ? `widget-${widget.appId}-${externalId}`
+          : `widget-${crypto.randomUUID()}`);
 
       const newWidget = {
         id: widgetId,
@@ -256,13 +285,22 @@ const server = http.createServer(async (req, res) => {
 
       // Ищем существующий (по id или externalId + appId)
       const existingIndex = widgetsStore.findIndex(
-        w => w.id === widgetId || (externalId && w.externalId === externalId && w.appId === widget.appId)
+        w =>
+          w.id === widgetId ||
+          (externalId &&
+            w.externalId === externalId &&
+            w.appId === widget.appId),
       );
 
       if (existingIndex !== -1) {
-        widgetsStore[existingIndex] = { ...widgetsStore[existingIndex], ...newWidget };
+        widgetsStore[existingIndex] = {
+          ...widgetsStore[existingIndex],
+          ...newWidget,
+        };
         saveWidgets(widgetsStore);
-        console.log(`[WidgetService] Updated widget: ${newWidget.id} (${newWidget.title})`);
+        console.log(
+          `[WidgetService] Updated widget: ${newWidget.id} (${newWidget.title})`,
+        );
         return sendJson(res, 200, {
           success: true,
           action: 'updated',
@@ -271,7 +309,9 @@ const server = http.createServer(async (req, res) => {
       } else {
         widgetsStore.unshift(newWidget);
         saveWidgets(widgetsStore);
-        console.log(`[WidgetService] Published new widget: ${newWidget.id} (${newWidget.title})`);
+        console.log(
+          `[WidgetService] Published new widget: ${newWidget.id} (${newWidget.title})`,
+        );
         return sendJson(res, 201, {
           success: true,
           action: 'created',
@@ -279,23 +319,30 @@ const server = http.createServer(async (req, res) => {
         });
       }
     } catch (err) {
-      return sendJson(res, 400, { success: false, error: err.message });
+      return sendJson(res, 400, {success: false, error: err.message});
     }
   }
 
   // 4. DELETE /api/v1/widgets/:id — Удаление виджета
   if (pathname.startsWith('/api/v1/widgets/') && method === 'DELETE') {
-    const idToDelete = decodeURIComponent(pathname.replace('/api/v1/widgets/', ''));
+    const idToDelete = decodeURIComponent(
+      pathname.replace('/api/v1/widgets/', ''),
+    );
     const initialLen = widgetsStore.length;
-    
-    widgetsStore = widgetsStore.filter(w => w.id !== idToDelete && w.externalId !== idToDelete);
+
+    widgetsStore = widgetsStore.filter(
+      w => w.id !== idToDelete && w.externalId !== idToDelete,
+    );
 
     if (widgetsStore.length < initialLen) {
       saveWidgets(widgetsStore);
       console.log(`[WidgetService] Deleted widget: ${idToDelete}`);
-      return sendJson(res, 200, { success: true, deletedId: idToDelete });
+      return sendJson(res, 200, {success: true, deletedId: idToDelete});
     } else {
-      return sendJson(res, 404, { success: false, error: `Widget with id "${idToDelete}" not found` });
+      return sendJson(res, 404, {
+        success: false,
+        error: `Widget with id "${idToDelete}" not found`,
+      });
     }
   }
 
@@ -303,7 +350,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/v1/widgets/reset' && method === 'POST') {
     widgetsStore = [...INITIAL_WIDGETS];
     saveWidgets(widgetsStore);
-    console.log('[WidgetService] Reset widgets to initial state and saved to disk');
+    console.log(
+      '[WidgetService] Reset widgets to initial state and saved to disk',
+    );
     return sendJson(res, 200, {
       success: true,
       message: 'Widgets reset to initial mock data',

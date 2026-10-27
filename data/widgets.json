@@ -2,7 +2,7 @@
   {
     "id": "widget-sed-docs",
     "externalId": "sed-pending-counter",
-    "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
     "appName": "СЭД: Документы",
     "template": "metric",
     "title": "Документы на подпись",
@@ -17,7 +17,7 @@
   {
     "id": "widget-calendar-sync",
     "externalId": "meeting-sync-orta",
-    "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
     "appName": "Календарь",
     "template": "event",
     "title": "Синхрон команды Orta",
@@ -31,7 +31,7 @@
   {
     "id": "widget-approval-vacation",
     "externalId": "vacation-req-102",
-    "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
     "appName": "HR Портал",
     "template": "approval",
     "title": "Заявление на отпуск",
@@ -45,7 +45,7 @@
   {
     "id": "widget-poll-q4",
     "externalId": "poll-education-q4",
-    "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
     "appName": "Опросы компании",
     "template": "poll",
     "title": "Корпоративное обучение Q4",
@@ -72,7 +72,7 @@
   {
     "id": "widget-pass-guest",
     "externalId": "pass-guest-994",
-    "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
     "appName": "Бюро пропусков",
     "template": "progress",
     "title": "Гостевой пропуск",
