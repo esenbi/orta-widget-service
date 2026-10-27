@@ -1,88 +1,198 @@
-# Orta Widget Hub (Service Demo)
+# Orta Widget Service (Reference Specification & Hub)
 
-Автономный сервис приёма и отдачи виджетов для мобильного приложения **Orta Super-App**.
+Эталонная реализация и архитектурный контракт сервиса виджетов для мобильной платформы **Orta Super-App**.
 
-## Особенности
-* Чистый Node.js без сторонних зависимостей.
-* **Сохранение данных на диске**: автоматически сохраняет все виджеты в `data/widgets.json` (переживает перезапуски сервера).
-* Готов к 1-click деплою на **Render.com**.
+Служит единым источником правды (Single Source of Truth) для валидации, хранения и отдачи виджетов главного экрана мобильного приложения.
 
 ---
 
-## Локальный запуск
+## 🏛 Архитектурная модель
 
-```bash
-cd orta-widget-service
-node server.js
+```
+┌─────────────────────────┐
+│     Mini-App (Web)      │
+│  @orta/bridge v1.8.0    │
+└────────────┬────────────┘
+             │ postMessage (PUBLISH_WIDGET)
+             ▼
+┌─────────────────────────┐
+│  Orta Mobile (Native)   │  1. Подставляет appId & appName из сессии (Zero-Trust)
+│   Bridge Dispatcher     │  2. Вызывает POST /api/v1/widgets/publish
+└────────────┬────────────┘  3. При 200: обновляет UI главной ленты
+             │               4. При 400: пробрасывает ошибку в Bridge Promise
+             ▼
+┌─────────────────────────┐
+│   Widget Hub Service    │  ◄── ВАЛИДАЦИЯ СХЕМЫ И БИЗНЕС-ПРАВИЛ
+│  (Node.js / Go / Java)  │      (Шаблоны, длины строк, диапазоны чисел)
+└─────────────────────────┘
 ```
 
-Сервер запустится на `http://localhost:4005`. При первом запуске автоматически создастся файл `data/widgets.json` с начальными данными.
+### Разделение зон ответственности:
+1. **SDK (`@orta/bridge`)**: Предоставляет TypeScript-типы и удобные асинхронные методы `publishWidget()` / `deleteWidget()`. Не раздувается тяжёлыми валидаторами в бандле.
+2. **Нативное приложение (`orta_mobile`)**: Zero-Trust шлюз. Гарантирует подлинность вызывающего мини-приложения (`appId`), но не выдумывает бизнес-валидацию на лету. Сразу стучится в бэкенд и транслирует ответ сервера в mini-app.
+3. **Бэкенд (`orta-widget-service`)**: **Единственный авторитетный орган валидации.** Проверяет допустимость шаблонов, обязательность полей, лимиты символов и ограничения вариантов.
 
 ---
 
-## Деплой на Render.com (Бесплатно)
+## 📡 API Контракт
 
-1. Создай новый репозиторий на GitHub и запушь туда содержимое этой папки (`orta-widget-service`).
-2. Зайди на [dashboard.render.com](https://dashboard.render.com) $\to$ **New +** $\to$ **Web Service**.
-3. Подключи свой репозиторий.
-4. Настройки:
-   * **Runtime**: `Node`
-   * **Build Command**: *(оставь пустым)*
-   * **Start Command**: `node server.js`
-   * **Instance Type**: `Free`
-5. Нажми **Create Web Service**.
-6. Через 1 минуту Render выдаст тебе публичный HTTPS-адрес, например:
-   `https://orta-widget-service.onrender.com`
+### Базовый URL
+* Production / Demo: `https://orta-widget-service.onrender.com/api/v1`
+* Localhost: `http://localhost:4005/api/v1`
 
-### Как подключить к мобильному приложению Orta:
-В файле `src/shared/api/services/widget_service.ts` просто замени локальный адрес на полученный с Render:
-```typescript
-export const WIDGET_SERVICE_BASE_URL = 'https://orta-widget-service.onrender.com/api/v1';
-```
-
----
-
-## API Эндпоинты
-
-| Метод | Путь | Описание |
+| Метод | Эндпоинт | Назначение |
 | :--- | :--- | :--- |
-| `GET` | `/health` | Проверка работоспособности сервиса |
-| `GET` | `/api/v1/widgets` | Получить список виджетов для приложения |
-| `POST` | `/api/v1/widgets/publish` | Опубликовать/обновить виджет от мини-аппа |
-| `DELETE` | `/api/v1/widgets/:id` | Удалить виджет |
-| `POST` | `/api/v1/widgets/reset` | Сбросить к исходным мок-данным |
+| `GET` | `/health` | Проверка здоровья сервиса, аптайма и количества виджетов |
+| `GET` | `/api/v1/widgets` | Список виджетов для экрана Home Orta Mobile |
+| `POST` | `/api/v1/widgets/publish` | Публикация или обновление виджета |
+| `DELETE` | `/api/v1/widgets/:id` | Удаление виджета по `id` или `externalId` |
+| `POST` | `/api/v1/widgets/reset` | Очистка всех виджетов (для тестов) |
 
 ---
 
-## Примеры cURL
+## 📋 Спецификация схемы данных виджета (`HomeServerWidget`)
 
-### 1. Получить виджеты
-```bash
-curl http://localhost:4005/api/v1/widgets
-```
+### 1. Общие поля
 
-### 2. Опубликовать / обновить виджет
+| Поле | Тип | Обязательное? | Описание и ограничения |
+| :--- | :--- | :---: | :--- |
+| `appId` | `string` | **Да** | Уникальный ID мини-приложения (UUID или slug, до 100 символов) |
+| `template` | `string` | **Да** | Шаблон отображения: `metric`, `event`, `poll`, `approval`, `progress`, `list`, `banner` |
+| `title` | `string` | **Да** | Основной заголовок виджета (1..150 символов) |
+| `externalId` | `string` | *Нет* | Бизнес-идентификатор виджета внутри мини-аппа (до 100 символов). Если передан повторно — виджет обновляется (upsert), а не дублируется |
+| `appName` | `string` | *Нет* | Название сервиса в шапке (до 100 символов, нативное приложение подставляет автоматически) |
+| `subtitle` | `string` | *Нет* | Вторичный пояснительный текст (до 200 символов) |
+| `badgeText` | `string` | *Нет* | Текст бейджа в шапке или теле виджета (до 50 символов) |
+| `badgeVariant` | `string` | *Нет* | Цветовой стиль бейджа: `accent`, `warning`, `success`, `danger`, `error`, `neutral`. По умолчанию `neutral` |
+| `actionText` | `string` | *Нет* | Текст кнопки действия в футере (до 50 символов). Если не передан — используется нативный fallback («Открыть →») |
+| `actionUrl` | `string` | *Нет* | Внутренний роут мини-аппа (например, `/widget/metric` или `/docs/42?tab=sign`). До 1000 символов |
+| `priority` | `number` | *Нет* | Вес сортировки (0..100). Виджеты с большим приоритетом выводятся первыми в карусели. По умолчанию 50 |
+
+---
+
+### 2. Специфичные поля по шаблонам
+
+#### А. Шаблон `metric` (Метрики, счётчики)
+* `counter` (*number*): Числовой показатель (целое $\ge 0$). Например, 3 заявки, 12 непрочитанных.
+
+#### Б. Шаблон `event` (События, встречи, созвоны)
+* `badgeText` (*string*): Время или статус встречи (например, `"15:30"`, `"Через 20 мин"`).
+
+#### В. Шаблон `poll` (Интерактивные опросы)
+* `options` (*array*, **обязательно**): Массив вариантов голосования (минимум 2 варианта):
+  ```json
+  [
+    { "id": "1", "text": "Вариант А", "percentage": 65, "isLeading": true },
+    { "id": "2", "text": "Вариант Б", "percentage": 35, "isLeading": false }
+  ]
+  ```
+
+#### Г. Шаблон `approval` (Согласования, заявки, кадровые документы)
+* `badgeText` (*string*): Статус согласования (`"Согласование"`, `"Одобрено"`, `"Отклонено"`).
+* `badgeVariant` (*string*): `warning` для ожидания, `success` для одобрения, `danger` для отклонения.
+
+#### Д. Шаблон `progress` (Прогресс процессов, онбординг, пропуска)
+* `progress` (*number*, **обязательно**): Процент завершения от `0` до `100`.
+* `statusText` (*string*): Текст текущего шага под полосой прогресса (например, `"Шаг 2 из 3"`).
+
+#### Е. Шаблон `banner` (Корпоративные объявления, анонсы)
+* `title` (*string*): Заголовок анонса.
+* `subtitle` (*string*): Подробности объявления.
+
+#### Ж. Шаблон `list` (Задачи, чеклисты)
+* `title` (*string*): Название списка задач.
+* `counter` (*number*): Количество активных пунктов.
+
+---
+
+## ⚡️ Примеры запросов и ответов
+
+### 1. Успешная публикация виджета (POST `/api/v1/widgets/publish`)
+**Запрос:**
 ```bash
-curl -X POST http://localhost:4005/api/v1/widgets/publish \
+curl -X POST https://orta-widget-service.onrender.com/api/v1/widgets/publish \
   -H "Content-Type: application/json" \
   -d '{
-    "externalId": "doc-urgent-77",
+    "externalId": "urgent-order-42",
     "widget": {
       "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
       "appName": "СЭД: Документы",
-      "template": "approval",
-      "title": "Срочный договор аренды #77",
-      "subtitle": "Требуется визирование до 18:00",
+      "template": "metric",
+      "title": "Документы на подпись",
+      "subtitle": "Срочный договор поставки №42",
+      "counter": 3,
       "badgeText": "Срочно",
       "badgeVariant": "warning",
-      "actionText": "Открыть в СЭД →",
-      "actionUrl": "/test",
-      "priority": 95
+      "actionText": "Согласовать →",
+      "actionUrl": "/widget/metric",
+      "priority": 90
     }
   }'
 ```
 
-### 3. Удалить виджет
-```bash
-curl -X DELETE http://localhost:4005/api/v1/widgets/doc-urgent-77
+**Ответ (201 Created):**
+```json
+{
+  "success": true,
+  "action": "created",
+  "widget": {
+    "id": "widget-056f66ad-50c2-46a0-95bd-6a8a8a111226-urgent-order-42",
+    "externalId": "urgent-order-42",
+    "appId": "056f66ad-50c2-46a0-95bd-6a8a8a111226",
+    "appName": "СЭД: Документы",
+    "template": "metric",
+    "title": "Документы на подпись",
+    "subtitle": "Срочный договор поставки №42",
+    "counter": 3,
+    "badgeText": "Срочно",
+    "badgeVariant": "warning",
+    "actionText": "Согласовать →",
+    "actionUrl": "/widget/metric",
+    "priority": 90,
+    "updatedAt": "2026-10-28T01:45:00.000Z"
+  }
+}
 ```
+
+---
+
+### 2. Ошибка валидации (400 Bad Request)
+Если переданы некорректные данные (например, неизвестный шаблон или опрос с 1 вариантом):
+
+**Ответ (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "'widget.template' \"unknown_type\" is invalid. Allowed: metric, event, poll, approval, progress, list, banner",
+  "details": [
+    "'widget.template' \"unknown_type\" is invalid. Allowed: metric, event, poll, approval, progress, list, banner",
+    "'widget.options' is required for 'poll' template and must contain at least 2 options"
+  ]
+}
+```
+*Нативное приложение перехватывает этот ответ и отклоняет промис в мини-аппе с понятным текстом.*
+
+---
+
+### 3. Удаление виджета (DELETE `/api/v1/widgets/:id`)
+```bash
+curl -X DELETE https://orta-widget-service.onrender.com/api/v1/widgets/urgent-order-42
+```
+
+**Ответ (200 OK):**
+```json
+{
+  "success": true,
+  "deletedId": "urgent-order-42"
+}
+```
+
+---
+
+## 💡 Руководство по миграции на Production Backend (Go / Java / Python / Kotlin)
+
+При переносе функционала виджетов в реальный микросервис Orta (на Go/Java):
+1. **Upsert по составному ключу**: Виджет должен уникально идентифицироваться парой `(app_id, external_id)` в базе данных (PostgreSQL / MongoDB).
+2. **Строгая типизация DTO**: Описать DTO структуры с тегами валидации (например, `validator.v10` в Go или `jakarta.validation` в Java).
+3. **Multi-tenancy / User-scoping**: В продакшене виджеты должны фильтроваться по `user_id` или `company_id`, получаемым из проверенного JWT Keycloak токена.
+4. **Push-нотификации и Centrifugo**: При изменении виджета через Centrifugo можно эмитить событие `widget:updated`, чтобы нативные клиенты обновляли главный экран в реальном времени.

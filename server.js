@@ -25,6 +25,155 @@ const DATA_FILE = path.join(DATA_DIR, 'widgets.json');
 // По умолчанию список пуст — виджеты создаются динамически через мини-приложения
 const INITIAL_WIDGETS = [];
 
+const ALLOWED_TEMPLATES = new Set([
+  'metric',
+  'event',
+  'poll',
+  'approval',
+  'progress',
+  'list',
+  'banner',
+]);
+
+const ALLOWED_BADGE_VARIANTS = new Set([
+  'accent',
+  'warning',
+  'success',
+  'danger',
+  'error',
+  'neutral',
+]);
+
+/**
+ * Валидация структуры виджета перед публикацией/обновлением.
+ * Возвращает массив строк с ошибками. Если массив пуст — валидация пройдена успешно.
+ */
+function validateWidgetPayload(payload) {
+  const errors = [];
+
+  if (!payload || typeof payload !== 'object') {
+    errors.push('Request body must be a JSON object');
+    return errors;
+  }
+
+  const { externalId, widget } = payload;
+
+  if (externalId !== undefined && externalId !== null) {
+    if (typeof externalId !== 'string' || !externalId.trim()) {
+      errors.push("'externalId' must be a non-empty string when provided");
+    } else if (externalId.length > 100) {
+      errors.push("'externalId' exceeds maximum length of 100 characters");
+    }
+  }
+
+  if (!widget || typeof widget !== 'object') {
+    errors.push("'widget' field is required and must be an object");
+    return errors;
+  }
+
+  // 1. Обязательные базовые поля
+  if (!widget.appId || typeof widget.appId !== 'string' || !widget.appId.trim()) {
+    errors.push("'widget.appId' is required and must be a non-empty string");
+  } else if (widget.appId.length > 100) {
+    errors.push("'widget.appId' exceeds maximum length of 100 characters");
+  }
+
+  if (!widget.template || typeof widget.template !== 'string') {
+    errors.push("'widget.template' is required and must be a string");
+  } else if (!ALLOWED_TEMPLATES.has(widget.template)) {
+    errors.push(
+      `'widget.template' "${widget.template}" is invalid. Allowed: ${Array.from(ALLOWED_TEMPLATES).join(', ')}`
+    );
+  }
+
+  if (!widget.title || typeof widget.title !== 'string' || !widget.title.trim()) {
+    errors.push("'widget.title' is required and must be a non-empty string");
+  } else if (widget.title.length > 150) {
+    errors.push("'widget.title' exceeds maximum length of 150 characters");
+  }
+
+  // 2. Необязательные общие поля
+  if (widget.subtitle !== undefined && widget.subtitle !== null) {
+    if (typeof widget.subtitle !== 'string') {
+      errors.push("'widget.subtitle' must be a string");
+    } else if (widget.subtitle.length > 200) {
+      errors.push("'widget.subtitle' exceeds maximum length of 200 characters");
+    }
+  }
+
+  if (widget.badgeText !== undefined && widget.badgeText !== null) {
+    if (typeof widget.badgeText !== 'string') {
+      errors.push("'widget.badgeText' must be a string");
+    } else if (widget.badgeText.length > 50) {
+      errors.push("'widget.badgeText' exceeds maximum length of 50 characters");
+    }
+  }
+
+  if (widget.badgeVariant !== undefined && widget.badgeVariant !== null) {
+    if (typeof widget.badgeVariant !== 'string' || !ALLOWED_BADGE_VARIANTS.has(widget.badgeVariant)) {
+      errors.push(
+        `'widget.badgeVariant' "${widget.badgeVariant}" is invalid. Allowed: ${Array.from(ALLOWED_BADGE_VARIANTS).join(', ')}`
+      );
+    }
+  }
+
+  if (widget.actionText !== undefined && widget.actionText !== null) {
+    if (typeof widget.actionText !== 'string') {
+      errors.push("'widget.actionText' must be a string");
+    } else if (widget.actionText.length > 50) {
+      errors.push("'widget.actionText' exceeds maximum length of 50 characters");
+    }
+  }
+
+  if (widget.actionUrl !== undefined && widget.actionUrl !== null) {
+    if (typeof widget.actionUrl !== 'string') {
+      errors.push("'widget.actionUrl' must be a string");
+    } else if (widget.actionUrl.length > 1000) {
+      errors.push("'widget.actionUrl' exceeds maximum length of 1000 characters");
+    }
+  }
+
+  if (widget.priority !== undefined && widget.priority !== null) {
+    if (typeof widget.priority !== 'number' || isNaN(widget.priority) || widget.priority < 0 || widget.priority > 100) {
+      errors.push("'widget.priority' must be a number between 0 and 100");
+    }
+  }
+
+  // 3. Специфичные поля по шаблонам
+  if (widget.template === 'metric') {
+    if (widget.counter !== undefined && widget.counter !== null) {
+      if (typeof widget.counter !== 'number' || isNaN(widget.counter)) {
+        errors.push("'widget.counter' must be a number for 'metric' template");
+      }
+    }
+  }
+
+  if (widget.template === 'progress') {
+    if (widget.progress === undefined || widget.progress === null || typeof widget.progress !== 'number' || isNaN(widget.progress)) {
+      errors.push("'widget.progress' is required for 'progress' template and must be a number (0..100)");
+    } else if (widget.progress < 0 || widget.progress > 100) {
+      errors.push("'widget.progress' must be between 0 and 100");
+    }
+  }
+
+  if (widget.template === 'poll') {
+    if (!Array.isArray(widget.options) || widget.options.length < 2) {
+      errors.push("'widget.options' is required for 'poll' template and must contain at least 2 options");
+    } else {
+      widget.options.forEach((opt, idx) => {
+        if (!opt || typeof opt !== 'object' || !opt.text || typeof opt.text !== 'string' || !opt.text.trim()) {
+          errors.push(`'widget.options[${idx}].text' must be a non-empty string`);
+        }
+        if (opt.percentage !== undefined && (typeof opt.percentage !== 'number' || opt.percentage < 0 || opt.percentage > 100)) {
+          errors.push(`'widget.options[${idx}].percentage' must be a number between 0 and 100`);
+        }
+      });
+    }
+  }
+
+  return errors;
+}
+
 /**
  * Файловое хранилище (Persistence)
  */
@@ -161,15 +310,21 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/v1/widgets/publish' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
-      const {targetUser, externalId, widget} = body;
+      const validationErrors = validateWidgetPayload(body);
 
-      if (!widget || !widget.appId || !widget.template || !widget.title) {
+      if (validationErrors.length > 0) {
+        console.warn(
+          '[WidgetService] Validation failed on /publish:',
+          validationErrors,
+        );
         return sendJson(res, 400, {
           success: false,
-          error:
-            'Missing required fields: widget.appId, widget.template, widget.title',
+          error: validationErrors[0],
+          details: validationErrors,
         });
       }
+
+      const {externalId, widget} = body;
 
       const widgetId =
         widget.id ||
@@ -179,20 +334,20 @@ const server = http.createServer(async (req, res) => {
 
       const newWidget = {
         id: widgetId,
-        externalId: externalId || widget.externalId,
+        externalId: externalId || widget.externalId || undefined,
         appId: widget.appId,
         appName: widget.appName || widget.appId,
         template: widget.template,
-        title: widget.title,
-        subtitle: widget.subtitle || '',
-        badgeText: widget.badgeText,
+        title: widget.title.trim(),
+        subtitle: widget.subtitle ? widget.subtitle.trim() : undefined,
+        badgeText: widget.badgeText ? widget.badgeText.trim() : undefined,
         badgeVariant: widget.badgeVariant || 'neutral',
-        counter: widget.counter,
-        options: widget.options,
-        progress: widget.progress,
-        statusText: widget.statusText,
-        actionText: widget.actionText || 'Открыть →',
-        actionUrl: widget.actionUrl || '/',
+        counter: typeof widget.counter === 'number' ? widget.counter : undefined,
+        options: Array.isArray(widget.options) ? widget.options : undefined,
+        progress: typeof widget.progress === 'number' ? widget.progress : undefined,
+        statusText: widget.statusText ? widget.statusText.trim() : undefined,
+        actionText: widget.actionText ? widget.actionText.trim() : undefined,
+        actionUrl: widget.actionUrl ? widget.actionUrl.trim() : undefined,
         priority: typeof widget.priority === 'number' ? widget.priority : 50,
         updatedAt: new Date().toISOString(),
       };
