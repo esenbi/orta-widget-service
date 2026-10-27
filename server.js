@@ -294,10 +294,15 @@ const server = http.createServer(async (req, res) => {
   // 2. GET /api/v1/widgets — Список виджетов для Orta Mobile
   if (pathname === '/api/v1/widgets' && method === 'GET') {
     const userId = parsedUrl.searchParams.get('userId');
-    // Сортировка по приоритету (высший приоритет первым)
-    const sorted = [...widgetsStore].sort(
-      (a, b) => (b.priority || 0) - (a.priority || 0),
-    );
+    // Сортировка: сначала по priority (если различается), затем самое свежее (updatedAt/createdAt) первым!
+    const sorted = [...widgetsStore].sort((a, b) => {
+      const pDiff = (b.priority ?? 50) - (a.priority ?? 50);
+      if (pDiff !== 0) return pDiff;
+
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
 
     return sendJson(res, 200, {
       success: true,
@@ -332,6 +337,20 @@ const server = http.createServer(async (req, res) => {
           ? `widget-${widget.appId}-${externalId}`
           : `widget-${crypto.randomUUID()}`);
 
+      // Ищем существующий (по id или externalId + appId)
+      const existingIndex = widgetsStore.findIndex(
+        w =>
+          w.id === widgetId ||
+          (externalId &&
+            w.externalId === externalId &&
+            w.appId === widget.appId),
+      );
+
+      const existingWidget =
+        existingIndex !== -1 ? widgetsStore[existingIndex] : null;
+      const createdAt = existingWidget?.createdAt || new Date().toISOString();
+      const updatedAt = new Date().toISOString();
+
       const newWidget = {
         id: widgetId,
         externalId: externalId || widget.externalId || undefined,
@@ -349,23 +368,14 @@ const server = http.createServer(async (req, res) => {
         actionText: widget.actionText ? widget.actionText.trim() : undefined,
         actionUrl: widget.actionUrl ? widget.actionUrl.trim() : undefined,
         priority: typeof widget.priority === 'number' ? widget.priority : 50,
-        updatedAt: new Date().toISOString(),
+        createdAt,
+        updatedAt,
       };
 
-      // Ищем существующий (по id или externalId + appId)
-      const existingIndex = widgetsStore.findIndex(
-        w =>
-          w.id === widgetId ||
-          (externalId &&
-            w.externalId === externalId &&
-            w.appId === widget.appId),
-      );
-
       if (existingIndex !== -1) {
-        widgetsStore[existingIndex] = {
-          ...widgetsStore[existingIndex],
-          ...newWidget,
-        };
+        // Перемещаем обновленный виджет наверх списка (LIFO)
+        widgetsStore.splice(existingIndex, 1);
+        widgetsStore.unshift(newWidget);
         saveWidgets(widgetsStore);
         console.log(
           `[WidgetService] Updated widget: ${newWidget.id} (${newWidget.title})`,
@@ -373,7 +383,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           success: true,
           action: 'updated',
-          widget: widgetsStore[existingIndex],
+          widget: newWidget,
         });
       } else {
         widgetsStore.unshift(newWidget);
