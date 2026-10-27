@@ -36,7 +36,7 @@ const INITIAL_WIDGETS = [
     badgeText: 'Требует внимания',
     badgeVariant: 'warning',
     actionText: 'Согласовать →',
-    actionUrl: '/documents/pending',
+    actionUrl: '/test',
     priority: 90,
   },
   {
@@ -50,7 +50,7 @@ const INITIAL_WIDGETS = [
     badgeText: '14:00',
     badgeVariant: 'accent',
     actionText: 'Войти в звонок →',
-    actionUrl: '/meetings/sync-orta',
+    actionUrl: '/test',
     priority: 80,
   },
   {
@@ -64,7 +64,7 @@ const INITIAL_WIDGETS = [
     badgeText: 'Согласование',
     badgeVariant: 'warning',
     actionText: 'Открыть заявку →',
-    actionUrl: '/requests/vacation/102',
+    actionUrl: '/test',
     priority: 75,
   },
   {
@@ -77,7 +77,7 @@ const INITIAL_WIDGETS = [
     badgeText: 'Голосование',
     badgeVariant: 'neutral',
     actionText: 'Принять участие →',
-    actionUrl: '/polls/corp-q4',
+    actionUrl: '/test',
     options: [
       { id: 'opt_1', text: 'AI и автоматизация', percentage: 68, isLeading: true },
       { id: 'opt_2', text: 'Управление проектами', percentage: 32, isLeading: false },
@@ -96,7 +96,7 @@ const INITIAL_WIDGETS = [
     badgeText: 'В обработке',
     badgeVariant: 'accent',
     actionText: 'Детали пропуска →',
-    actionUrl: '/passes/guest-994',
+    actionUrl: '/test',
     priority: 50,
   },
 ];

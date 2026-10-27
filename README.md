@@ -76,7 +76,7 @@ curl -X POST http://localhost:4005/api/v1/widgets/publish \
       "badgeText": "Срочно",
       "badgeVariant": "warning",
       "actionText": "Открыть в СЭД →",
-      "actionUrl": "/documents/77",
+      "actionUrl": "/test",
       "priority": 95
     }
   }'
