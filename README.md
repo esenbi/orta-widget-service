@@ -11,7 +11,7 @@
 ```
 ┌─────────────────────────┐
 │     Mini-App (Web)      │
-│  @orta/bridge v1.8.0    │
+│  @orta/bridge v1.8.1    │
 └────────────┬────────────┘
              │ postMessage (PUBLISH_WIDGET)
              ▼
