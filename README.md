@@ -68,7 +68,7 @@ curl -X POST http://localhost:4005/api/v1/widgets/publish \
   -d '{
     "externalId": "doc-urgent-77",
     "widget": {
-      "appId": "sed",
+      "appId": "b9b11ba3-ec4d-4c45-9cd0-9146b084809b",
       "appName": "СЭД: Документы",
       "template": "approval",
       "title": "Срочный договор аренды #77",

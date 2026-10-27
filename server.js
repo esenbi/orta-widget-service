@@ -27,7 +27,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-sed-docs',
     externalId: 'sed-pending-counter',
-    appId: 'sed',
+    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
     appName: 'СЭД: Документы',
     template: 'metric',
     title: 'Документы на подпись',
@@ -42,7 +42,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-calendar-sync',
     externalId: 'meeting-sync-orta',
-    appId: 'calendar',
+    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
     appName: 'Календарь',
     template: 'event',
     title: 'Синхрон команды Orta',
@@ -56,7 +56,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-approval-vacation',
     externalId: 'vacation-req-102',
-    appId: 'hr',
+    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
     appName: 'HR Портал',
     template: 'approval',
     title: 'Заявление на отпуск',
@@ -70,7 +70,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-poll-q4',
     externalId: 'poll-education-q4',
-    appId: 'polls',
+    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
     appName: 'Опросы компании',
     template: 'poll',
     title: 'Корпоративное обучение Q4',
@@ -87,7 +87,7 @@ const INITIAL_WIDGETS = [
   {
     id: 'widget-pass-guest',
     externalId: 'pass-guest-994',
-    appId: 'security',
+    appId: 'b9b11ba3-ec4d-4c45-9cd0-9146b084809b',
     appName: 'Бюро пропусков',
     template: 'progress',
     title: 'Гостевой пропуск',
