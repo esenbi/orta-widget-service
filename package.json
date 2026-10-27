@@ -1,6 +1,7 @@
 {
   "name": "orta-widget-service",
   "version": "1.0.0",
+  "type": "module",
   "description": "Mock & Ingestion Widget Service for Orta Super-App Platform",
   "main": "server.js",
   "scripts": {

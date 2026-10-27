@@ -1,0 +1,87 @@
+[
+  {
+    "id": "widget-sed-docs",
+    "externalId": "sed-pending-counter",
+    "appId": "sed",
+    "appName": "СЭД: Документы",
+    "template": "metric",
+    "title": "Документы на подпись",
+    "subtitle": "Срочный договор поставки №42",
+    "counter": 3,
+    "badgeText": "Требует внимания",
+    "badgeVariant": "warning",
+    "actionText": "Согласовать →",
+    "actionUrl": "/documents/pending",
+    "priority": 90
+  },
+  {
+    "id": "widget-calendar-sync",
+    "externalId": "meeting-sync-orta",
+    "appId": "calendar",
+    "appName": "Календарь",
+    "template": "event",
+    "title": "Синхрон команды Orta",
+    "subtitle": "Переговорная 3 • Через 40 минут",
+    "badgeText": "14:00",
+    "badgeVariant": "accent",
+    "actionText": "Войти в звонок →",
+    "actionUrl": "/meetings/sync-orta",
+    "priority": 80
+  },
+  {
+    "id": "widget-approval-vacation",
+    "externalId": "vacation-req-102",
+    "appId": "hr",
+    "appName": "HR Портал",
+    "template": "approval",
+    "title": "Заявление на отпуск",
+    "subtitle": "Аскар Каримов • 14 дней с 1 ноября",
+    "badgeText": "Согласование",
+    "badgeVariant": "warning",
+    "actionText": "Открыть заявку →",
+    "actionUrl": "/requests/vacation/102",
+    "priority": 75
+  },
+  {
+    "id": "widget-poll-q4",
+    "externalId": "poll-education-q4",
+    "appId": "polls",
+    "appName": "Опросы компании",
+    "template": "poll",
+    "title": "Корпоративное обучение Q4",
+    "badgeText": "Голосование",
+    "badgeVariant": "neutral",
+    "actionText": "Принять участие →",
+    "actionUrl": "/polls/corp-q4",
+    "options": [
+      {
+        "id": "opt_1",
+        "text": "AI и автоматизация",
+        "percentage": 68,
+        "isLeading": true
+      },
+      {
+        "id": "opt_2",
+        "text": "Управление проектами",
+        "percentage": 32,
+        "isLeading": false
+      }
+    ],
+    "priority": 60
+  },
+  {
+    "id": "widget-pass-guest",
+    "externalId": "pass-guest-994",
+    "appId": "security",
+    "appName": "Бюро пропусков",
+    "template": "progress",
+    "title": "Гостевой пропуск",
+    "subtitle": "Проверка службы безопасности (Шаг 2 из 3)",
+    "progress": 66,
+    "badgeText": "В обработке",
+    "badgeVariant": "accent",
+    "actionText": "Детали пропуска →",
+    "actionUrl": "/passes/guest-994",
+    "priority": 50
+  }
+]

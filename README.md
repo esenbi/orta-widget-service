@@ -16,7 +16,7 @@ cd orta-widget-service
 node server.js
 ```
 
-Сервер запустится на `http://localhost:4000`. При первом запуске автоматически создастся файл `data/widgets.json` с начальными данными.
+Сервер запустится на `http://localhost:4005`. При первом запуске автоматически создастся файл `data/widgets.json` с начальными данными.
 
 ---
 
@@ -58,12 +58,12 @@ export const WIDGET_SERVICE_BASE_URL = 'https://orta-widget-service.onrender.com
 
 ### 1. Получить виджеты
 ```bash
-curl http://localhost:4000/api/v1/widgets
+curl http://localhost:4005/api/v1/widgets
 ```
 
 ### 2. Опубликовать / обновить виджет
 ```bash
-curl -X POST http://localhost:4000/api/v1/widgets/publish \
+curl -X POST http://localhost:4005/api/v1/widgets/publish \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "doc-urgent-77",
@@ -84,5 +84,5 @@ curl -X POST http://localhost:4000/api/v1/widgets/publish \
 
 ### 3. Удалить виджет
 ```bash
-curl -X DELETE http://localhost:4000/api/v1/widgets/doc-urgent-77
+curl -X DELETE http://localhost:4005/api/v1/widgets/doc-urgent-77
 ```
