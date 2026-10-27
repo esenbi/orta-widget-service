@@ -44,6 +44,33 @@ const ALLOWED_BADGE_VARIANTS = new Set([
   'neutral',
 ]);
 
+const DEFAULT_TTL_SECONDS = 24 * 60 * 60; // 24 часа по умолчанию
+
+/**
+ * Расчёт даты деактивации виджета (expiresAt).
+ * - ttlSeconds === 0 или -1 -> null (бессрочный)
+ * - expiresAt (валидная ISO дата) -> expiresAt
+ * - ttlSeconds (> 0) -> now + ttlSeconds
+ * - иначе -> now + DEFAULT_TTL_SECONDS (24 часа)
+ */
+function calculateExpiresAt(widget) {
+  if (widget.ttlSeconds === 0 || widget.ttlSeconds === -1) {
+    return null;
+  }
+  if (widget.expiresAt && typeof widget.expiresAt === 'string') {
+    const parsed = new Date(widget.expiresAt);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  const seconds =
+    typeof widget.ttlSeconds === 'number' && widget.ttlSeconds > 0
+      ? widget.ttlSeconds
+      : DEFAULT_TTL_SECONDS;
+
+  return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
 /**
  * Валидация структуры виджета перед публикацией/обновлением.
  * Возвращает массив строк с ошибками. Если массив пуст — валидация пройдена успешно.
@@ -136,6 +163,18 @@ function validateWidgetPayload(payload) {
   if (widget.priority !== undefined && widget.priority !== null) {
     if (typeof widget.priority !== 'number' || isNaN(widget.priority) || widget.priority < 0 || widget.priority > 100) {
       errors.push("'widget.priority' must be a number between 0 and 100");
+    }
+  }
+
+  if (widget.ttlSeconds !== undefined && widget.ttlSeconds !== null) {
+    if (typeof widget.ttlSeconds !== 'number' || isNaN(widget.ttlSeconds)) {
+      errors.push("'widget.ttlSeconds' must be a number (seconds, e.g. 3600; 0 or -1 for permanent)");
+    }
+  }
+
+  if (widget.expiresAt !== undefined && widget.expiresAt !== null) {
+    if (typeof widget.expiresAt !== 'string' || isNaN(new Date(widget.expiresAt).getTime())) {
+      errors.push("'widget.expiresAt' must be a valid ISO date string (e.g. 2026-10-28T18:00:00Z)");
     }
   }
 
@@ -282,11 +321,18 @@ const server = http.createServer(async (req, res) => {
 
   // 1. Healthcheck
   if (pathname === '/health' && method === 'GET') {
+    const now = Date.now();
+    const activeCount = widgetsStore.filter(
+      w => !w.expiresAt || new Date(w.expiresAt).getTime() > now,
+    ).length;
+
     return sendJson(res, 200, {
       status: 'ok',
       service: 'orta-widget-service',
       time: new Date().toISOString(),
-      activeWidgetsCount: widgetsStore.length,
+      activeWidgetsCount: activeCount,
+      totalStoredWidgets: widgetsStore.length,
+      defaultTtlSeconds: DEFAULT_TTL_SECONDS,
       storageFile: DATA_FILE,
     });
   }
@@ -294,8 +340,16 @@ const server = http.createServer(async (req, res) => {
   // 2. GET /api/v1/widgets — Список виджетов для Orta Mobile
   if (pathname === '/api/v1/widgets' && method === 'GET') {
     const userId = parsedUrl.searchParams.get('userId');
-    // Сортировка: сначала по priority (если различается), затем самое свежее (updatedAt/createdAt) первым!
-    const sorted = [...widgetsStore].sort((a, b) => {
+    const now = Date.now();
+
+    // 1. Фильтруем просроченные виджеты (TTL)
+    const activeWidgets = widgetsStore.filter(w => {
+      if (!w.expiresAt) return true; // бессрочный (ttlSeconds: 0 / -1)
+      return new Date(w.expiresAt).getTime() > now;
+    });
+
+    // 2. Двухуровневая сортировка: сначала по priority, затем самое свежее (updatedAt/createdAt) первым!
+    const sorted = [...activeWidgets].sort((a, b) => {
       const pDiff = (b.priority ?? 50) - (a.priority ?? 50);
       if (pDiff !== 0) return pDiff;
 
@@ -350,6 +404,7 @@ const server = http.createServer(async (req, res) => {
         existingIndex !== -1 ? widgetsStore[existingIndex] : null;
       const createdAt = existingWidget?.createdAt || new Date().toISOString();
       const updatedAt = new Date().toISOString();
+      const expiresAt = calculateExpiresAt(widget);
 
       const newWidget = {
         id: widgetId,
@@ -368,6 +423,8 @@ const server = http.createServer(async (req, res) => {
         actionText: widget.actionText ? widget.actionText.trim() : undefined,
         actionUrl: widget.actionUrl ? widget.actionUrl.trim() : undefined,
         priority: typeof widget.priority === 'number' ? widget.priority : 50,
+        ttlSeconds: typeof widget.ttlSeconds === 'number' ? widget.ttlSeconds : undefined,
+        expiresAt,
         createdAt,
         updatedAt,
       };
