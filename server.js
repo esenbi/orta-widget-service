@@ -11,10 +11,18 @@
 
 import http from 'node:http';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 4000;
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'widgets.json');
 
-// Демонстрационный набор виджетов (заменяет старый хардкод DEFAULT_SERVER_WIDGETS)
+// Демонстрационный набор виджетов (инициализируется при первом запуске)
 const INITIAL_WIDGETS = [
   {
     id: 'widget-sed-docs',
@@ -84,6 +92,7 @@ const INITIAL_WIDGETS = [
     template: 'progress',
     title: 'Гостевой пропуск',
     subtitle: 'Проверка службы безопасности (Шаг 2 из 3)',
+    progress: 66,
     badgeText: 'В обработке',
     badgeVariant: 'accent',
     actionText: 'Детали пропуска →',
@@ -92,7 +101,45 @@ const INITIAL_WIDGETS = [
   },
 ];
 
-let widgetsStore = [...INITIAL_WIDGETS];
+/**
+ * Файловое хранилище (Persistence)
+ */
+function ensureDataFile() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_WIDGETS, null, 2), 'utf-8');
+  }
+}
+
+function loadWidgets() {
+  try {
+    ensureDataFile();
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return [...INITIAL_WIDGETS];
+  } catch (err) {
+    console.error('[Storage] Error loading widgets from file, using initial:', err.message);
+    return [...INITIAL_WIDGETS];
+  }
+}
+
+function saveWidgets(widgets) {
+  try {
+    ensureDataFile();
+    fs.writeFileSync(DATA_FILE, JSON.stringify(widgets, null, 2), 'utf-8');
+    console.log(`[Storage] Saved ${widgets.length} widgets to ${DATA_FILE}`);
+  } catch (err) {
+    console.error('[Storage] Error saving widgets to file:', err.message);
+  }
+}
+
+// Загрузка сохраненных виджетов с диска
+let widgetsStore = loadWidgets();
 
 /**
  * Утилита для отправки JSON ответа с CORS
@@ -117,7 +164,6 @@ function parseJsonBody(req) {
     req.on('data', chunk => {
       body += chunk;
       if (body.length > 1e6) {
-        // Защита от переполнения (> 1MB)
         req.destroy();
         reject(new Error('Payload too large'));
       }
@@ -156,6 +202,7 @@ const server = http.createServer(async (req, res) => {
       service: 'orta-widget-service',
       time: new Date().toISOString(),
       activeWidgetsCount: widgetsStore.length,
+      storageFile: DATA_FILE,
     });
   }
 
@@ -199,6 +246,8 @@ const server = http.createServer(async (req, res) => {
         badgeVariant: widget.badgeVariant || 'neutral',
         counter: widget.counter,
         options: widget.options,
+        progress: widget.progress,
+        statusText: widget.statusText,
         actionText: widget.actionText || 'Открыть →',
         actionUrl: widget.actionUrl || '/',
         priority: typeof widget.priority === 'number' ? widget.priority : 50,
@@ -212,6 +261,7 @@ const server = http.createServer(async (req, res) => {
 
       if (existingIndex !== -1) {
         widgetsStore[existingIndex] = { ...widgetsStore[existingIndex], ...newWidget };
+        saveWidgets(widgetsStore);
         console.log(`[WidgetService] Updated widget: ${newWidget.id} (${newWidget.title})`);
         return sendJson(res, 200, {
           success: true,
@@ -220,6 +270,7 @@ const server = http.createServer(async (req, res) => {
         });
       } else {
         widgetsStore.unshift(newWidget);
+        saveWidgets(widgetsStore);
         console.log(`[WidgetService] Published new widget: ${newWidget.id} (${newWidget.title})`);
         return sendJson(res, 201, {
           success: true,
@@ -240,6 +291,7 @@ const server = http.createServer(async (req, res) => {
     widgetsStore = widgetsStore.filter(w => w.id !== idToDelete && w.externalId !== idToDelete);
 
     if (widgetsStore.length < initialLen) {
+      saveWidgets(widgetsStore);
       console.log(`[WidgetService] Deleted widget: ${idToDelete}`);
       return sendJson(res, 200, { success: true, deletedId: idToDelete });
     } else {
@@ -250,7 +302,8 @@ const server = http.createServer(async (req, res) => {
   // 5. POST /api/v1/widgets/reset — Сброс к исходному мок-списку
   if (pathname === '/api/v1/widgets/reset' && method === 'POST') {
     widgetsStore = [...INITIAL_WIDGETS];
-    console.log('[WidgetService] Reset widgets to initial state');
+    saveWidgets(widgetsStore);
+    console.log('[WidgetService] Reset widgets to initial state and saved to disk');
     return sendJson(res, 200, {
       success: true,
       message: 'Widgets reset to initial mock data',
@@ -273,6 +326,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n🚀 Orta Widget Hub is running on http://localhost:${PORT}`);
+  console.log(`💾 Data stored at: ${DATA_FILE}`);
   console.log(`📡 GET    http://localhost:${PORT}/api/v1/widgets`);
   console.log(`📝 POST   http://localhost:${PORT}/api/v1/widgets/publish`);
   console.log(`🗑️  DELETE http://localhost:${PORT}/api/v1/widgets/:id`);
